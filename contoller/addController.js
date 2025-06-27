@@ -1,5 +1,6 @@
 const category = require("../model/category");
 const color = require("../model/color");
+const complain = require("../model/complain");
 const Product = require("../model/product");
 
 const addProduct = async (req, res) => {
@@ -69,4 +70,36 @@ const addColor = async (req, res) => {
   }
 };
 
-module.exports = { addProduct, addCategory, addColor };
+const addComplain = async (req, res) => {
+  try {
+    const { subject, message } = req.body;
+
+    // if (!req.user || !req.user._id) {
+    //   return res
+    //     .status(40)
+    //     .json({ message: "Unauthorized: User not authenticated" });
+    // }
+
+    if (!subject || !message) {
+      return res
+        .status(400)
+        .json({ message: "Subject and message are required." });
+    }
+
+    const newComplain = new complain({
+      subject,
+      message,
+      userId: req.user._id,
+    });
+
+    await newComplain.save();
+    return res
+      .status(201)
+      .json({ message: "Your complaint has been received" });
+  } catch (error) {
+    console.error("Add Complain Error:", error);
+    return res.status(500).json({ message: "Internal Server Error" });
+  }
+};
+
+module.exports = { addProduct, addCategory, addColor, addComplain };

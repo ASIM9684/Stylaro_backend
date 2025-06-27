@@ -29,7 +29,7 @@ const signup = async (req, res) => {
       },
       process.env.SECRET_KEY,
       {
-        expiresIn: "1h",
+        expiresIn: "30d",
       }
     );
 
@@ -65,14 +65,33 @@ const login = async (req, res) => {
       },
       process.env.SECRET_KEY,
       {
-        expiresIn: "1h",
+        expiresIn: "30d",
       }
     );
 
     return res.status(200).json({ message: "Login successful", token });
   } catch (error) {
-    console.error("Error signing up:", error);
+    console.error("Error Login:", error);
     return res.status(500).json({ message: "Internal Server Error" });
   }
 };
-module.exports = { signup, login };
+
+const verifyToken = (req, res, next) => {
+  const authHeader = req.headers.authorization;
+
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return res.status(401).json({ message: "Unauthorized: Invalid User" });
+  }
+
+  const token = authHeader.split(" ")[1];
+
+  try {
+    const decoded = jwt.verify(token, process.env.SECRET_KEY);
+    req.user = decoded;
+    next();
+  } catch (error) {
+    return res.status(401).json({ message: "Unauthorized: Invalid User" });
+  }
+};
+
+module.exports = { signup, login, verifyToken };
