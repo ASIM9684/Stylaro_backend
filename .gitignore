@@ -1,0 +1,9 @@
+# Node
+node_modules/
+.env
+*.log
+
+# OS/IDE
+.DS_Store
+*.swp
+.vscode/
