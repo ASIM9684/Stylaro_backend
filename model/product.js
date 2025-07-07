@@ -7,14 +7,16 @@ const productSchema = new mongoose.Schema(
       required: [true, "product name is required"],
       unique: true,
     },
-    discount : {
-      type : String
+    discount: {
+      type: String
     },
-    rating : {
-      type : String
+    rating: {
+      type: String
     },
-    quantity : {
-      type : String
+    quantity: {
+      type: Number,
+      required: true,
+      default: 0,
     },
     image: {
       type: String,

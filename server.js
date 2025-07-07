@@ -45,7 +45,6 @@ app.post("/webhook", bodyParser.raw({ type: "application/json" }), async (req, r
   res.json({ received: true });
 });
 
-// Normal routes
 app.use(express.json());
 app.use("/", router);
 

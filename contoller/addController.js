@@ -3,6 +3,7 @@ const color = require("../model/color");
 const complain = require("../model/complain");
 const favorites = require("../model/favorites");
 const order = require("../model/order");
+const product = require("../model/product");
 const Product = require("../model/product");
 const user = require("../model/user");
 require('dotenv').config();
@@ -11,7 +12,7 @@ const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 
 const addProduct = async (req, res) => {
   try {
-    const { name, price, image, category, color, gender,discount,quantity,rating } = req.body;
+    const { name, price, image, category, color, gender, discount, quantity, rating } = req.body;
     const existing = await Product.findOne({ name });
     if (existing) {
       return res.status(400).json({ message: "Product already exists" });
@@ -114,57 +115,64 @@ const addFavorite = async (req, res) => {
     if (!exists) {
       await favorites.create({ userId, productId });
     }
-    res.status(200).json({ success: true, message : "Favorite Added Successfully" });
+    res.status(200).json({ success: true, message: "Favorite Added Successfully" });
   } catch (err) {
-    res.status(500).json({ message: "Internal Server Error" });e
+    res.status(500).json({ message: "Internal Server Error" }); e
   }
 };
 
 const orderproduct = async (req, res) => {
   try {
-    const { items ,address} = req.body;
+    const { items, address } = req.body;
     const userId = req.user._id;
 
     const totalAmount = items.reduce((sum, item) => {
-      const price = item.discount
-        ? item.price - (item.price * item.discount) / 100
-        : item.price;
-      return sum + price * item.quantity;
+      return sum + item.price * item.quantity;
     }, 0);
-    
-
     const amountInCents = Math.round(totalAmount * 100);
 
     const paymentIntent = await stripe.paymentIntents.create({
       amount: amountInCents,
       currency: 'usd',
-      metadata: { userId },
+      metadata: { userId: userId.toString() },
     });
 
     const newOrder = new order({
       userId,
-      items: items.map((item) => ({
-        productId: item._id,
-        quantity: item.quantity,
-        price: item.price,
+      items: items.map(({ _id, quantity, price }) => ({
+        productId: _id,
+        quantity,
+        price,
       })),
       address,
-      totalAmount, 
+      totalAmount,
       paymentIntentId: paymentIntent.id,
       paymentStatus: 'pending',
     });
 
     await newOrder.save();
-    await user.findByIdAndUpdate(userId,
-      {
-        status : "verified"
-      }
-    )
-    res.json({ clientSecret: paymentIntent.client_secret});
+
+    await user.findByIdAndUpdate(userId, {
+      status: "verified",
+      isVerified: true,
+    });
+
+for (const { _id, quantity } of items) {
+  const qty = parseInt(quantity);
+  if (!isNaN(qty)) {
+    await product.findByIdAndUpdate(_id, {
+      $inc: { quantity: -qty }, // Decrement stock
+    });
+  }
+}
+
+
+    res.json({ clientSecret: paymentIntent.client_secret });
   } catch (error) {
-    console.error('Payment intent creation failed:', error);
+    console.error('❌ Payment intent creation failed:', error);
     res.status(500).json({ error: 'Payment failed' });
   }
 };
 
-module.exports = { addProduct, addCategory, addColor, addComplain,addFavorite,orderproduct };
+
+module.exports = { addProduct, addCategory, addColor, addComplain, addFavorite, orderproduct };

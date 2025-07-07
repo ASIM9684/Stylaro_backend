@@ -1,5 +1,6 @@
 const category = require("../model/category");
 const color = require("../model/color");
+const order = require("../model/order");
 const product = require("../model/product");
 const user = require("../model/user");
 const updateCategory = async (req, res) => {
@@ -89,6 +90,28 @@ const updateUserStatus = async (req, res) => {
     return res.status(500).json({ message: "Internal Server Error" })
 
   }
-
 }
-module.exports = { updateCategory, updateColor, updateProduct,updateUserStatus };
+
+const updateOrderStatus = async (req, res) => {
+  try {
+    const id = req.params.id
+    const { status } = req.body;
+
+    const orderData = await order.findByIdAndUpdate(
+      id,
+      {
+       deliveryStatus: status
+      }
+    );
+
+    if (!orderData) {
+      return res.status(400).json({ message: "No Order Found" });
+    }
+    return res.status(200).json({ message: "Order Status Updated Successfully" });
+  } catch (error) {
+    console.log("Error Updating Order Status", error);
+    return res.status(500).json({ message: "Internal Server Error" })
+
+  }
+}
+module.exports = { updateCategory, updateColor, updateProduct,updateUserStatus,updateOrderStatus };

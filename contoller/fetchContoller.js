@@ -6,6 +6,7 @@ const complain = require("../model/complain");
 const favorites = require("../model/favorites");
 const user = require("../model/user");
 const order = require("../model/order");
+const product = require("../model/product");
 
 const getProducts = async (req, res) => {
   try {
@@ -218,7 +219,7 @@ const getUsers = async (req, res) => {
 }
 const getOrder = async (req, res) => {
   try {
-        const userId = new mongoose.Types.ObjectId(req.params.id)
+    const userId = new mongoose.Types.ObjectId(req.params.id)
     const orderData = await order.aggregate([
       {
         $match: {
@@ -237,20 +238,6 @@ const getOrder = async (req, res) => {
         $unwind: "$user"
       },
       {
-        $unwind: "$items"
-      },
-      {
-        $lookup: {
-          from: "products",
-          localField: "items.productId",
-          foreignField: "_id",
-          as: "items.product"
-        }
-      },
-      {
-        $unwind: "$items.product"
-      },
-      {
         $group: {
           _id: "$_id",
           userId: { $first: "$userId" },
@@ -259,8 +246,8 @@ const getOrder = async (req, res) => {
           totalAmount: { $first: "$totalAmount" },
           paymentStatus: { $first: "$paymentStatus" },
           paymentIntentId: { $first: "$paymentIntentId" },
+          deliveryStatus: { $first: "$deliveryStatus" },
           createdAt: { $first: "$createdAt" },
-          items: { $push: "$items" }
         }
       },
       {
@@ -270,47 +257,9 @@ const getOrder = async (req, res) => {
         $project: {
           address: 1,
           name: "$user.name",
-          items: {
-            $map: {
-              input: "$items",
-              as: "item",
-              in: {
-                productName: "$$item.product.name",
-                originalPrice: { $toDouble: "$$item.product.price" },
-                discount: { $toDouble: "$$item.product.discount" },
-                quantity: "$$item.quantity",
-                discountedPrice: {
-                  $cond: {
-                    if: {
-                      $and: [
-                        { $gt: [{ $toDouble: "$$item.product.discount" }, 0] },
-                        { $ne: ["$$item.product.discount", null] }
-                      ]
-                    },
-                    then: {
-                      $subtract: [
-                        { $toDouble: "$$item.product.price" },
-                        {
-                          $divide: [
-                            {
-                              $multiply: [
-                                { $toDouble: "$$item.product.price" },
-                                { $toDouble: "$$item.product.discount" }
-                              ]
-                            },
-                            100
-                          ]
-                        }
-                      ]
-                    },
-                    else: { $toDouble: "$$item.product.price" }
-                  }
-                }
-              }
-            }
-          },
           totalAmount: 1,
           paymentStatus: 1,
+          deliveryStatus: 1,
           createdAt: 1
         }
       }
@@ -324,7 +273,151 @@ const getOrder = async (req, res) => {
   }
 };
 
+const getOrderProduct = async (req, res) => {
+  try {
+    const _id = new mongoose.Types.ObjectId(req.params.id);
+    const orderData = await order.aggregate([
+      { $match: { _id } },
+
+      { $unwind: "$items" },
+
+      {
+        $lookup: {
+          from: "products",
+          localField: "items.productId",
+          foreignField: "_id",
+          as: "productInfo"
+        }
+      },
+      { $unwind: "$productInfo" },
+
+      // Join with category
+      {
+        $lookup: {
+          from: "categories",
+          localField: "productInfo.category",
+          foreignField: "_id",
+          as: "categoryInfo"
+        }
+      },
+      { $unwind: "$categoryInfo" },
+
+      // Join with color
+      {
+        $lookup: {
+          from: "colors",
+          localField: "productInfo.color",
+          foreignField: "_id",
+          as: "colorsInfo"
+        }
+      },
+      { $unwind: "$colorsInfo" },
+
+      {
+        $addFields: {
+          "items.product": "$productInfo",
+          "items.category": "$categoryInfo",
+          "items.color": "$colorsInfo",
+          "items.price": "$items.price",
+          "items.quantity": "$items.quantity"
+        }
+      },
+
+      {
+        $group: {
+          _id: "$_id",
+          items: { $push: "$items" },
+          totalAmount: { $first: "$totalAmount" },
+          createdAt: { $first: "$createdAt" }
+        }
+      },
+
+      {
+        $project: {
+          _id: 1,
+          totalAmount: 1,
+          createdAt: 1,
+          items: {
+            $map: {
+              input: "$items",
+              as: "item",
+              in: {
+                productName: "$$item.product.name",
+                originalPrice: { $toDouble: "$$item.price" },
+                quantity: "$$item.quantity",
+                image: "$$item.product.image",
+                category: "$$item.category.name",
+                color: "$$item.color.name",
+                gender: "$$item.product.gender",
+                productCreatedAt: "$$item.product.createdAt",
+                productUpdatedAt: "$$item.product.updatedAt",
+              }
+            }
+          }
+        }
+      }
+    ]);
+
+    return res.status(200).json(orderData[0] || {});
+  } catch (error) {
+    console.error("Error Fetching Order Products:", error);
+    return res.status(500).json({ message: "Internal Server Error" });
+  }
+};
+
+const monthlyOrderChart = async (req, res) => {
+  try {
+    const monthlyOrders = await order.aggregate([
+      {
+        $group: {
+          _id: { $month: "$createdAt" },
+          orderCount: { $sum: 1 },
+        },
+      },
+      {
+        $sort: { "_id": 1 },
+      },
+    ]);
+
+    const months = [
+      "", "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+      "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+    ];
+
+    const chartData = monthlyOrders.map((entry) => ({
+      month: months[entry._id],
+      orders: entry.orderCount,
+    }));
+
+    res.json(chartData);
+  } catch (err) {
+    console.error("Error fetching monthly order data", err);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+const getDashboardCount = async (req, res) => {
+  try {
+    const productCount = await product.countDocuments();
+    const userCount = await user.countDocuments();
+    const orderCount = await order.countDocuments();
+
+    res.status(200).json({
+      productCount,
+      userCount,
+      orderCount,
+    });
+  } catch (error) {
+    console.error("Dashboard count error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch dashboard data",
+    });
+  }
+};
+
 module.exports = {
+  getDashboardCount,
   getCategories,
   getColors,
   getProducts,
@@ -333,5 +426,7 @@ module.exports = {
   getComplainsbyUser,
   getFavorites,
   getUsers,
-  getOrder
+  getOrder,
+  getOrderProduct,
+  monthlyOrderChart
 };

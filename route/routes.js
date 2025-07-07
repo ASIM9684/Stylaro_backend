@@ -7,8 +7,8 @@ const {
   addFavorite,
   orderproduct,
 } = require("../contoller/addController");
-const { getCategories, getColors, getProducts, getProductbyId, getComplains, getComplainsbyUser, getFavorites, getUsers, getOrder } = require("../contoller/fetchContoller");
-const { updateCategory, updateColor, updateProduct, updateUserStatus } = require("../contoller/updateContoller");
+const { getCategories, getColors, getProducts, getProductbyId, getComplains, getComplainsbyUser, getFavorites, getUsers, getOrder, getOrderProduct, monthlyOrderChart, getDashboardCount } = require("../contoller/fetchContoller");
+const { updateCategory, updateColor, updateProduct, updateUserStatus, updateOrderStatus } = require("../contoller/updateContoller");
 const { signup, login, verifyToken, updateuser, verifyUser } = require("../contoller/auth");
 const { deleteFavorite } = require("../contoller/deleteController");
 const router = express.Router();
@@ -32,11 +32,15 @@ router.get("/getComplainsbyUser",verifyToken, getComplainsbyUser);
 router.get("/getFavorites",verifyToken, getFavorites);
 router.get("/getUser",verifyToken,getUsers);
 router.get("/getOrder/:id",getOrder);
+router.get("/getOrderProduct/:id",getOrderProduct);
+router.get("/monthlyOrderChart",verifyToken, monthlyOrderChart);
+router.get("/getDashboardCount",verifyToken,getDashboardCount);
 
 router.put("/updateCategory/:id",verifyToken, updateCategory);
 router.put("/updateColor/:id", verifyToken,updateColor);
 router.put("/updateProduct/:id",verifyToken, updateProduct);
 router.put("/updateUserStatus/:id",verifyToken, updateUserStatus);
+router.put("/updateOrderStatus/:id",verifyToken, updateOrderStatus);
 
 router.delete("/deleteFavorite/:productId",verifyToken, deleteFavorite);
 
