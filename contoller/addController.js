@@ -6,6 +6,7 @@ const order = require("../model/order");
 const product = require("../model/product");
 const Product = require("../model/product");
 const user = require("../model/user");
+const { getIO } = require("../socket");
 require('dotenv').config();
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 
@@ -152,19 +153,25 @@ const orderproduct = async (req, res) => {
 
     await newOrder.save();
 
+ getIO().emit("newOrderCreated", {
+  orderId: newOrder._id,
+  totalAmount,
+  createdAt: newOrder.createdAt,
+});
+
     await user.findByIdAndUpdate(userId, {
       status: "verified",
       isVerified: true,
     });
 
-for (const { _id, quantity } of items) {
-  const qty = parseInt(quantity);
-  if (!isNaN(qty)) {
-    await product.findByIdAndUpdate(_id, {
-      $inc: { quantity: -qty }, // Decrement stock
-    });
-  }
-}
+    for (const { _id, quantity } of items) {
+      const qty = parseInt(quantity);
+      if (!isNaN(qty)) {
+        await product.findByIdAndUpdate(_id, {
+          $inc: { quantity: -qty }, // Decrement stock
+        });
+      }
+    }
 
 
     res.json({ clientSecret: paymentIntent.client_secret });

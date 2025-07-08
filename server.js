@@ -1,15 +1,31 @@
 const express = require("express");
+const http = require("http"); 
 const db_connection = require("./database");
 const router = require("./route/routes");
 const cors = require("cors");
 const bodyParser = require("body-parser");
 const order = require("./model/order");
-require('dotenv').config();
+const { Server } = require("socket.io");
+require("dotenv").config();
 const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
+const socketHelper = require("./socket");
+
+const PORT = process.env.PORT || 8080;
 
 const app = express();
+
+const server = http.createServer(app);
+
+const io = new Server(server, {
+  cors: {
+    origin: "*", 
+    methods: ["GET", "POST"]
+  }
+});
+
+socketHelper.init(io);
+
 db_connection();
-app.use(cors());
 
 app.post("/webhook", bodyParser.raw({ type: "application/json" }), async (req, res) => {
   const sig = req.headers["stripe-signature"];
@@ -36,6 +52,11 @@ app.post("/webhook", bodyParser.raw({ type: "application/json" }), async (req, r
         userdata.paymentStatus = "paid";
         await userdata.save();
         console.log("✅ Order updated to 'paid'");
+
+        io.emit("paymentStatusUpdate", {
+          orderId: userdata._id,
+          status: "paid",
+        });
       }
     } catch (dbErr) {
       console.error("❌ Error updating order in DB:", dbErr);
@@ -45,9 +66,16 @@ app.post("/webhook", bodyParser.raw({ type: "application/json" }), async (req, r
   res.json({ received: true });
 });
 
+app.use(cors());
 app.use(express.json());
 app.use("/", router);
 
-app.listen(8000, () => {
-  console.log("🚀 Server running on http://localhost:8000");
+io.on("connection", (socket) => {
+  console.log("🟢 New client connected:", socket.id);
+
+  socket.on("disconnect", () => {
+    console.log("🔴 Client disconnected:", socket.id);
+  });
 });
+
+server.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
