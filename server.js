@@ -1,5 +1,5 @@
 const express = require("express");
-const http = require("http"); 
+const http = require("http");
 const db_connection = require("./database");
 const router = require("./route/routes");
 const cors = require("cors");
@@ -18,7 +18,7 @@ const server = http.createServer(app);
 
 const io = new Server(server, {
   cors: {
-    origin: "*", 
+    origin: "*",
     methods: ["GET", "POST"]
   }
 });
@@ -27,6 +27,7 @@ socketHelper.init(io);
 
 db_connection();
 
+app.use(cors());
 app.post("/webhook", bodyParser.raw({ type: "application/json" }), async (req, res) => {
   const sig = req.headers["stripe-signature"];
   const endpointSecret = process.env.WHSEC;
@@ -66,9 +67,10 @@ app.post("/webhook", bodyParser.raw({ type: "application/json" }), async (req, r
   res.json({ received: true });
 });
 
-app.use(cors());
 app.use(express.json());
 app.use("/", router);
+
+
 
 io.on("connection", (socket) => {
   console.log("🟢 New client connected:", socket.id);

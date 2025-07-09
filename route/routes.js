@@ -11,6 +11,7 @@ const { getCategories, getColors, getProducts, getProductbyId, getComplains, get
 const { updateCategory, updateColor, updateProduct, updateUserStatus, updateOrderStatus } = require("../contoller/updateContoller");
 const { signup, login, verifyToken, updateuser, verifyUser } = require("../contoller/auth");
 const { deleteFavorite } = require("../contoller/deleteController");
+const { chatboat } = require("../contoller/chatbotController");
 const router = express.Router();
 
 router.post("/add-product",verifyToken, addProduct);
@@ -22,6 +23,7 @@ router.post("/login",login);
 router.post("/updateUser",verifyToken,updateuser);
 router.post("/addFavorite",verifyToken,addFavorite);
 router.post("/order",verifyToken, orderproduct);
+router.post("/chat",chatboat);
 
 router.get("/categories",verifyUser, getCategories);
 router.get("/colors",verifyUser, getColors);
