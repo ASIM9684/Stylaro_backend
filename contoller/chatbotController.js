@@ -1,3 +1,4 @@
+const category = require("../model/category");
 const color = require("../model/color");
 const product = require("../model/product");
 
@@ -12,8 +13,10 @@ const chatboat = async (req, res) => {
   const query = {};
   const sort = {};
 
-  // Match color
   const allColors = await color.find().lean();
+  const allCategories = await category.find().lean();
+
+  // Match color
   const matchedColor = allColors.find(c =>
     lowerPrompt.includes(c.name.toLowerCase())
   );
@@ -33,31 +36,43 @@ const chatboat = async (req, res) => {
     sort.price = -1;
   }
 
-  const escapedPrompt = escapeRegExp(prompt);
-  const nameMatch = await product.findOne({
-    name: { $regex: new RegExp(escapedPrompt, "i") },
+  // Match category
+  const matchedCategory = allCategories.find(cat =>
+    lowerPrompt.includes(cat.name.toLowerCase())
+  );
+  if (matchedCategory) query.category = matchedCategory._id;
+
+  // Name, color, category fuzzy match
+  const keywordRegex = new RegExp(escapeRegExp(prompt), "i");
+  const directMatches = await product.find({
+    $or: [
+      { name: { $regex: keywordRegex } },
+    ]
   })
     .populate("category", "name")
     .populate("color", "name")
     .lean();
 
-  let productsToDescribe = [];
+  // Match using filters
+  const filteredMatches = await product.find(query)
+    .populate("category", "name")
+    .populate("color", "name")
+    .sort(sort)
+    .lean();
 
-  if (nameMatch) {
-    productsToDescribe = [nameMatch];
-  } else {
-    productsToDescribe = await product.find(query)
-      .populate("category", "name")
-      .populate("color", "name")
-      .sort(sort)
-      .limit(3)
-      .lean();
-  }
+  // Merge and remove duplicates
+  const allProducts = [...directMatches, ...filteredMatches];
+  const seen = new Set();
+  const uniqueProducts = allProducts.filter(p => {
+    if (seen.has(p._id.toString())) return false;
+    seen.add(p._id.toString());
+    return true;
+  });
 
   const productQueryDetected =
-    nameMatch || matchedColor || query.gender || Object.keys(sort).length;
+    directMatches.length || matchedColor || query.gender || Object.keys(sort).length || matchedCategory;
 
-  if (!productsToDescribe.length && !productQueryDetected) {
+  if (!uniqueProducts.length && !productQueryDetected) {
     return res.json({
       reply: "👋 Hi there! I'm here to help with product-related questions. You can ask me about prices, colors, categories, or specific items. 😊"
     });
@@ -67,7 +82,8 @@ const chatboat = async (req, res) => {
     .map(msg => `${msg.sender === "user" ? "User" : "Bot"}: ${msg.text}`)
     .join("\n");
 
-  const formattedProducts = productsToDescribe
+  const formattedProducts = uniqueProducts
+    .slice(0, 5)
     .map(p => `Product: ${p.name}
 Price: $${p.price}
 Rating: ${p.rating || "N/A"}
@@ -75,6 +91,7 @@ Gender: ${p.gender}
 Category: ${p.category?.name || "N/A"}
 Color: ${p.color?.name || "N/A"}
 Quantity: ${p.quantity}
+Image: ${p.image || "None"}
 Discount: ${p.discount || "None"}`)
     .join("\n\n");
 
@@ -91,7 +108,17 @@ Only answer based on this data.
 - Be friendly and conversational.
 - Do NOT mention any product names unless the prompt is clearly asking about them.
 - If the user **does** mention or ask about a product, do mention the product name.
+If the user asks about any product, reply with the full product block like this format:
 
+Product: Yellow Shoes  
+Price: $1000  
+Rating: 3  
+Gender: Male  
+Category: Shoes  
+Color: yellow  
+Quantity: 44  
+Image: https://res.cloudinary.com/...  
+Discount: 0
 Now answer this user prompt:
 "${prompt}"
 `;
