@@ -85,7 +85,9 @@ const chatboat = async (req, res) => {
   const formattedProducts = uniqueProducts
     .slice(0, 5)
     .map(p => `Product: ${p.name}
-Price: $${p.price}
+Price: $${p.discount && p.discount > 0
+        ? p.price - (p.discount / 100) * p.price
+        : p.price}
 Rating: ${p.rating || "N/A"}
 Gender: ${p.gender}
 Category: ${p.category?.name || "N/A"}
