@@ -168,7 +168,7 @@ const orderproduct = async (req, res) => {
       const qty = parseInt(quantity);
       if (!isNaN(qty)) {
         await product.findByIdAndUpdate(_id, {
-          $inc: { quantity: -qty }, // Decrement stock
+          $inc: { quantity: -qty },
         });
       }
     }
@@ -181,5 +181,43 @@ const orderproduct = async (req, res) => {
   }
 };
 
+const postWebhook = async (req, res) => {
+  const sig = req.headers["stripe-signature"];
+  const endpointSecret = process.env.WHSEC;
 
-module.exports = { addProduct, addCategory, addColor, addComplain, addFavorite, orderproduct };
+  let event;
+  try {
+    event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
+  } catch (err) {
+    console.error("❌ Webhook signature verification failed:", err.message);
+    return res.status(400).send(`Webhook Error: ${err.message}`);
+  }
+
+  if (event.type === "payment_intent.succeeded") {
+    const paymentIntent = event.data.object;
+    console.log("✅ Payment succeeded:", paymentIntent.id);
+
+    try {
+      const userdata = await order.findOne({ paymentIntentId: paymentIntent.id });
+
+      if (!userdata) {
+        console.log("❌ Payment ID not found in order DB");
+      } else {
+        userdata.paymentStatus = "paid";
+        await userdata.save();
+        console.log("✅ Order updated to 'paid'");
+
+        io.emit("paymentStatusUpdate", {
+          orderId: userdata._id,
+          status: "paid",
+        });
+      }
+    } catch (dbErr) {
+      console.error("❌ Error updating order in DB:", dbErr);
+    }
+  }
+
+  res.json({ received: true });
+}
+
+module.exports = { addProduct, addCategory, addColor, addComplain, addFavorite, orderproduct,postWebhook };
