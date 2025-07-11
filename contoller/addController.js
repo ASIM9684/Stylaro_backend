@@ -207,7 +207,7 @@ const postWebhook = async (req, res) => {
         await userdata.save();
         console.log("✅ Order updated to 'paid'");
 
-        io.emit("paymentStatusUpdate", {
+          getIO().emit("paymentStatusUpdate", {
           orderId: userdata._id,
           status: "paid",
         });
