@@ -101,8 +101,10 @@ Image: ${p.image || "None"}
 Discount: ${p.discount || "None"}`)
     .join("\n\n");
 
-  const instruction = `
-You are a smart shopping assistant AI trained to answer only about the following products and you can use all the languages:
+ const instruction = `
+You are a smart shopping assistant AI trained to answer only about the following products. You can understand and respond in **all languages**.
+
+Always reply in the **same language as the user prompt**.
 
 ${formattedProducts}
 
@@ -116,16 +118,17 @@ Only answer based on this data.
 - If the user **does** mention or ask about a product, do mention the product name.
 If the user asks about any product, reply with the full product block like this format:
 
-_id: 686247171d0f0fac6062a96f
+_id: 686247171d0f0fac6062a96f  
 Product: Yellow Shoes  
 Price: 1000  
 Rating: 3  
 Gender: Male  
 Category: Shoes  
-Color: yellow  
+Color: Yellow  
 Quantity: 44  
 Image: https://res.cloudinary.com/...  
 Discount: 0
+
 Now answer this user prompt:
 "${prompt}"
 `;
