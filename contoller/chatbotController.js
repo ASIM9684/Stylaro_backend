@@ -84,8 +84,12 @@ const chatboat = async (req, res) => {
 
   const formattedProducts = uniqueProducts
     .slice(0, 5)
-    .map(p => `Product: ${p.name}
-Price: $${p.discount && p.discount > 0
+    .map(p => 
+      
+      `
+      _id: ${p._id}
+      Product: ${p.name}
+Price:${p.discount && p.discount > 0
         ? p.price - (p.discount / 100) * p.price
         : p.price}
 Rating: ${p.rating || "N/A"}
@@ -112,8 +116,9 @@ Only answer based on this data.
 - If the user **does** mention or ask about a product, do mention the product name.
 If the user asks about any product, reply with the full product block like this format:
 
+_id: 686247171d0f0fac6062a96f
 Product: Yellow Shoes  
-Price: $1000  
+Price: 1000  
 Rating: 3  
 Gender: Male  
 Category: Shoes  
