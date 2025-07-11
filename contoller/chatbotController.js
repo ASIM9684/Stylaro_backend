@@ -101,22 +101,23 @@ Image: ${p.image || "None"}
 Discount: ${p.discount || "None"}`)
     .join("\n\n");
 
- const instruction = `
+const instruction = `
 You are a smart shopping assistant AI trained to answer only about the following products. You can understand and respond in **all languages**.
 
 Always reply in the **same language as the user prompt**.
 
 ${formattedProducts}
 
-Here is the chat so far:
+Here is the conversation so far:
 ${formattedHistory}
 
-Only answer based on this data. 
+Use the conversation history to understand references like "same color", "same category", or "also", and respond accordingly.
+
+Only answer based on this product data. 
 - If the question is not about any of the products, then respond according to the following rules:
-- Be friendly and conversational.
-- Do NOT mention any product names unless the prompt is clearly asking about them.
-- If the user **does** mention or ask about a product, do mention the product name.
-If the user asks about any product, reply with the full product block like this format:
+  - Be friendly and conversational.
+  - Do NOT mention any product names unless the prompt clearly asks about them.
+  - If the user does mention or refer to a product, respond with the full product block as shown below:
 
 _id: 686247171d0f0fac6062a96f  
 Product: Yellow Shoes  
