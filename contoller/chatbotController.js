@@ -102,7 +102,7 @@ Discount: ${p.discount || "None"}`)
     .join("\n\n");
 
   const instruction = `
-You are a smart shopping assistant AI trained to answer only about the following products:
+You are a smart shopping assistant AI trained to answer only about the following products and you can use all the languages:
 
 ${formattedProducts}
 
@@ -110,7 +110,7 @@ Here is the chat so far:
 ${formattedHistory}
 
 Only answer based on this data. 
-- If the question is not about any of the above products, respond: "I'm only able to answer product-related queries."
+- If the question is not about any of the products, then respond according to the following rules:
 - Be friendly and conversational.
 - Do NOT mention any product names unless the prompt is clearly asking about them.
 - If the user **does** mention or ask about a product, do mention the product name.
